@@ -3,8 +3,10 @@ import {ApiError} from "../utils/ApiError.js";
 import {User} from "../models/user.model.js";
 import uploadDir from "../utils/Cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
-const generateAccessAndRefreshTokens = asyncHandler(async (res, req) => {
+const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
@@ -15,12 +17,12 @@ const generateAccessAndRefreshTokens = asyncHandler(async (res, req) => {
 
     return {accessToken, refreshToken};
   } catch (error) {
-    throw ApiError(
+    throw new ApiError(
       500,
       "Something wen't wrong while generating access and refresh token"
     );
   }
-});
+};
 
 const registerUser = asyncHandler(async (req, res) => {
   // res.status(200).json({
@@ -110,16 +112,18 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const {email, username, password} = req.body;
 
-  if (!username || !email) {
+  if (!username && !email) {
     throw new ApiError(400, "username or email required");
   }
 
-  const user = await User.find({$or: [{email}, {password}]});
+  const user = await User.findOne({$or: [{username}, {email}]});
+  console.log(user);
 
   if (!user) {
     throw new ApiError(404, "user not found");
   }
-  const isPasswordValid = user.isPasswordCorrect(password);
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
 
   if (!isPasswordValid) {
     throw new ApiError(401, "invalid user credentials");
@@ -150,8 +154,8 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-const logoutUser = asyncHandler(async (res, req) => {
-  User.findByIdAndUpdate(
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
@@ -170,7 +174,7 @@ const logoutUser = asyncHandler(async (res, req) => {
   return res
     .status(200)
     .clearCookie("accessToken", options)
-    .clearCookie("RefreshToken", options)
+    .clearCookie("refreshToken", options)
     .json(new ApiResponse(200, {}, "User logout"));
 });
 
