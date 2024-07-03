@@ -272,6 +272,18 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is missing");
   }
+
+  // delete the existing image before uploading new one
+
+  const existingUserAvatar = await User.findById(req.user?._id);
+  if (!existingUserAvatar) {
+    throw new ApiError(404, "User not found");
+  }
+  if (existingUserAvatar) {
+    existingUserAvatar.avatar.url = null;
+    await existingUserAvatar.save();
+  }
+
   const avatar = await uploadDir(avatarLocalPath);
   if (!avatar.url) {
     throw new ApiError(400, "Error while uploading avatar");
@@ -297,6 +309,17 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   if (!coverImageLocalPath) {
     throw new ApiError(400, "Cover image file is missing");
   }
+
+  // delete the cover image
+  const existingUserCoverImage = await User.findById(req.user?._id);
+  if (!existingUserCoverImage) {
+    throw new ApiError(404, "User not found");
+  }
+  if (existingUserCoverImage) {
+    existingUserCoverImage.coverImage.url = null;
+    await existingUserCoverImage.save();
+  }
+
   const coverImage = await uploadDir(coverImageLocalPath);
   if (!avatar.url) {
     throw new ApiError(400, "Error while uploading coverImage");
